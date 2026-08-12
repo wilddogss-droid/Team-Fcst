@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>팀 FCST 집계</title>
+    <style>
+        :root {
+            --primary: #464EB8;
+            --primary-hover: #3b42a0;
+            --success: #28a745;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+
+        .admin-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #eef0f8;
+            border-left: 5px solid var(--primary);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95em;
+            transition: border-color 0.15s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        input[readonly] {
+            background-color: #f7fafc;
+            color: #4a5568;
+            font-weight: 600;
+        }
+
+        button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        .btn-teams { background-color: var(--primary); color: white; }
+        .btn-submit { background-color: var(--success); color: white; }
+        .btn-delete { background-color: #dc3545; color: white; padding: 4px 8px; font-size: 0.8em; }
+
+        .unit-label {
+            font-size: 0.85em;
+            color: #666;
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .kpi-card {
+            background: #f8f9fa;
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .kpi-title { font-size: 0.85em; color: #6c757d; margin-bottom: 5px; }
+        .kpi-value { font-size: 1.3em; font-weight: bold; color: #1a1a1a; }
+        .kpi-value.highlight { color: var(--primary); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: right;
+            font-size: 0.9em;
+        }
+
+        th { background-color: #f8f9fa; text-align: center; color: #495057; }
+        td:nth-child(1) { text-align: center; font-weight: bold; }
+
+        .matrix-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .matrix-table {
+            width: 100%;
+            min-width: 800px;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 10px 12px;
+            text-align: right;
+            font-size: 0.88em;
+            border: 1px solid var(--border);
+        }
+
+        .matrix-table th {
+            background-color: #edf2f7;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .matrix-table td:first-child, .matrix-table th:first-child {
+            position: sticky;
+            left: 0;
+            background-color: #fff;
+            z-index: 2;
+            font-weight: bold;
+            text-align: center;
+            border-right: 2px solid var(--border);
+        }
+
+        .matrix-table th:first-child {
+            background-color: #e2e8f0;
+        }
+
+        .matrix-table .current-month {
+            background-color: #eef2ff;
+            font-weight: bold;
+        }
+
+        .matrix-table .ytd-cell {
+            background-color: #f7fafc;
+            font-weight: bold;
+            color: var(--primary);
+            border-left: 2px solid var(--border);
+        }
+
+        .editable-month, .editable-cell {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .editable-month:hover, .editable-cell:hover {
+            background-color: #eef2ff !important;
+            color: var(--primary);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 팀 FCST 집계</h2>
+
+    <!-- 1. 웹 도구 주소 공유 -->
+    <div class="card admin-section">
+        <div>
+            <h3 style="margin-bottom: 5px;">🔗 웹 도구 주소 공유</h3>
+            <span style="font-size: 0.85em; color: #555;">사내 메신저(팀즈, 이메일 등)에 공유할 웹 도구 링크를 복사합니다.</span>
+        </div>
+        <button class="btn-teams" onclick="copyAppUrl()">📋 주소 복사하기</button>
+    </div>
+
+    <!-- 2. 담당자 입력 영역 -->
+    <div class="card">
+        <h3>✏️ 담당자 FCST 입력</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>담당자명</label>
+                <select id="owner" onchange="checkExistingOwner()">
+                    <option value="손창곤">손창곤</option>
+                    <option value="유슬아">유슬아</option>
+                    <option value="옥수영">옥수영</option>
+                    <option value="박명선">박명선</option>
+                    <option value="최원준">최원준</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>예상 취급액</label>
+                <input type="number" id="handling" placeholder="예: 100000000" oninput="calculateRate()">
+            </div>
+            <div class="form-group">
+                <label>예상 매출액/수수료</label>
+                <input type="number" id="revenue" placeholder="예: 3000000" oninput="calculateRate()">
+            </div>
+            <div class="form-group">
+                <label>수수료율</label>
+                <input type="text" id="rate" readonly value="0.00%">
+            </div>
+            <div>
+                <button id="btnSubmit" class="btn-submit" onclick="addData()">제출하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 전체 집계 대시보드 -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 id="currentMonthTitle">📈 이번 달 팀 FCST 집계 현황</h3>
+            <div class="unit-label">(단위: 원)</div>
+        </div>
+
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-title">팀 총 취급액</div>
+                <div class="kpi-value" id="kpiHandling">0 원</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">팀 총 매출액</div>
+                <div class="kpi-value highlight" id="kpiRevenue">0 원</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">팀 평균 수수료율</div>
+                <div class="kpi-value" id="kpiRate">0.00 %</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>담당자</th>
+                    <th>취급액</th>
+                    <th>매출액 (수수료)</th>
+                    <th>수수료율 (%)</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="dataTable">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. 지난 월별 실적 및 연간 누계 (동적 매트릭스 뷰) -->
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">📅 월별 실적 및 연간 누계 <span style="font-size: 0.78em; font-weight: normal; color: #666;">(💡 월 헤더/숫자를 클릭하여 지난 실적 수정 가능)</span></h3>
+
+        <div class="matrix-wrapper">
+            <table class="matrix-table">
+                <thead id="monthlyMatrixHead">
+                </thead>
+                <tbody id="monthlyMatrixTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 월별 실적 수정을 위한 모달 창 -->
+<div id="editMonthModal" class="modal-overlay">
+    <div class="modal-content">
+        <h4 id="editMonthModalTitle" style="margin-top:0; margin-bottom:14px; color:#1a1a1a;">📅 실적 수정</h4>
+        <input type="hidden" id="editTargetMonth">
+        <div style="margin-bottom: 12px;">
+            <label>취급액</label>
+            <input type="number" id="modalHandling" style="width:100%; padding:8px;" oninput="calculateModalRate()">
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label>매출액</label>
+            <input type="number" id="modalRevenue" style="width:100%; padding:8px;" oninput="calculateModalRate()">
+        </div>
+        <div style="margin-bottom: 16px;">
+            <label>수수료율 (자동계산)</label>
+            <input type="text" id="modalRate" readonly style="width:100%; padding:8px; background:#f8f9fa;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button style="background:#6c757d; color:white; padding: 7px 14px;" onclick="closeEditMonthModal()">취소</button>
+            <button class="btn-submit" style="padding: 7px 14px;" onclick="savePastMonthData()">저장하기</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let WEBHOOK_URL = "";
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    let defaultHistory = {
+        1: { handling: 420000000, revenue: 12600000 },
+        2: { handling: 380000000, revenue: 11400000 },
+        3: { handling: 510000000, revenue: 15300000 },
+        4: { handling: 450000000, revenue: 13500000 },
+        5: { handling: 490000000, revenue: 14700000 },
+        6: { handling: 530000000, revenue: 15900000 },
+        7: { handling: 470000000, revenue: 14100000 },
+        8: { handling: 480000000, revenue: 14400000 },
+        9: { handling: 500000000, revenue: 15000000 },
+        10: { handling: 520000000, revenue: 15600000 },
+        11: { handling: 510000000, revenue: 15300000 },
+        12: { handling: 550000000, revenue: 16500000 }
+    };
+
+    const allMonthlyHistory = JSON.parse(localStorage.getItem('monthlyHistory')) || defaultHistory;
+
+    let fcstList = JSON.parse(localStorage.getItem('fcstData')) || [
+        { owner: '손창곤', handling: 200000000, revenue: 6000000, rate: 3.0 },
+        { owner: '유슬아', handling: 150000000, revenue: 4500000, rate: 3.0 }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initTitles();
+        calculateRate();
+        render();
+        checkExistingOwner();
+    });
+
+    window.onload = function() {
+        initTitles();
+        calculateRate();
+        render();
+        checkExistingOwner();
+    };
+
+    function initTitles() {
+        const titleEl = document.getElementById('currentMonthTitle');
+        if (titleEl) {
+            titleEl.innerText = `📈 ${currentMonth}월 팀 FCST 집계 현황`;
+        }
+    }
+
+    function checkExistingOwner() {
+        const ownerEl = document.getElementById('owner');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const handlingEl = document.getElementById('handling');
+        const revenueEl = document.getElementById('revenue');
+
+        if (!ownerEl || !btnSubmit || !handlingEl || !revenueEl) return;
+
+        const selectedOwner = ownerEl.value;
+        const existingData = fcstList.find(item => item.owner === selectedOwner);
+
+        if (existingData) {
+            handlingEl.value = existingData.handling;
+            revenueEl.value = existingData.revenue;
+            btnSubmit.innerText = '수정하기';
+        } else {
+            handlingEl.value = '';
+            revenueEl.value = '';
+            btnSubmit.innerText = '제출하기';
+        }
+        calculateRate();
+    }
+
+    function calculateRate() {
+        const handlingInput = document.getElementById('handling');
+        const revenueInput = document.getElementById('revenue');
+        const rateInput = document.getElementById('rate');
+
+        if (!handlingInput || !revenueInput || !rateInput) return;
+
+        const handling = parseFloat(handlingInput.value) || 0;
+        const revenue = parseFloat(revenueInput.value) || 0;
+
+        if (handling > 0) {
+            const rate = (revenue / handling) * 100;
+            rateInput.value = rate.toFixed(2) + '%';
+        } else {
+            rateInput.value = '0.00%';
+        }
+    }
+
+    function addData() {
+        const ownerEl = document.getElementById('owner');
+        const handlingEl = document.getElementById('handling');
+        const revenueEl = document.getElementById('revenue');
+
+        if (!ownerEl || !handlingEl || !revenueEl) return;
+
+        const owner = ownerEl.value;
+        const handling = parseFloat(handlingEl.value) || 0;
+        const revenue = parseFloat(revenueEl.value) || 0;
+
+        if (!owner) {
+            alert('담당자를 선택해 주세요.');
+            return;
+        }
+        if (handling <= 0) {
+            alert('올바른 취급액을 입력해 주세요.');
+            return;
+        }
+
+        const rate = (revenue / handling) * 100;
+        const existingIndex = fcstList.findIndex(item => item.owner === owner);
+
+        if (existingIndex >= 0) {
+            fcstList[existingIndex] = { owner, handling, revenue, rate };
+        } else {
+            fcstList.push({ owner, handling, revenue, rate });
+        }
+
+        saveAndRender();
+        checkExistingOwner();
+    }
+
+    function deleteData(index) {
+        if (index >= 0 && index < fcstList.length) {
+            fcstList.splice(index, 1);
+            saveAndRender();
+            checkExistingOwner();
+        }
+    }
+
+    function saveAndRender() {
+        localStorage.setItem('fcstData', JSON.stringify(fcstList));
+        render();
+    }
+
+    function render() {
+        const tbody = document.getElementById('dataTable');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        let totalHandling = 0;
+        let totalRevenue = 0;
+
+        fcstList.forEach((item, index) => {
+            totalHandling += item.handling;
+            totalRevenue += item.revenue;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.owner}</td>
+                <td>${item.handling.toLocaleString('ko-KR')}</td>
+                <td>${item.revenue.toLocaleString('ko-KR')}</td>
+                <td>${item.rate.toFixed(2)}%</td>
+                <td style="text-align:center;"><button class="btn-delete" onclick="deleteData(${index})">삭제</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const avgRate = totalHandling > 0 ? (totalRevenue / totalHandling) * 100 : 0;
+
+        const elHandling = document.getElementById('kpiHandling');
+        const elRevenue = document.getElementById('kpiRevenue');
+        const elRate = document.getElementById('kpiRate');
+
+        if (elHandling) elHandling.innerText = totalHandling.toLocaleString('ko-KR') + ' 원';
+        if (elRevenue) elRevenue.innerText = totalRevenue.toLocaleString('ko-KR') + ' 원';
+        if (elRate) elRate.innerText = avgRate.toFixed(2) + ' %';
+
+        renderMonthlyPerformance(totalHandling, totalRevenue);
+    }
+
+    function renderMonthlyPerformance(currentHandling, currentRevenue) {
+        const thead = document.getElementById('monthlyMatrixHead');
+        const tbody = document.getElementById('monthlyMatrixTable');
+        if (!thead || !tbody) return;
+
+        let headHtml = `<tr><th>구분</th>`;
+        for (let m = 1; m <= 12; m++) {
+            if (m === currentMonth) {
+                headHtml += `<th class="current-month">${m}월 (예상)</th>`;
+            } else {
+                headHtml += `<th class="editable-month" onclick="openEditMonthModal(${m})" title="${m}월 실적 수정하기">${m}월 ✏️</th>`;
+            }
+        }
+        headHtml += `<th class="ytd-cell">연간 누계 (YTD)</th></tr>`;
+        thead.innerHTML = headHtml;
+
+        let ytdHandling = 0;
+        let ytdRevenue = 0;
+        const monthDataList = [];
+
+        for (let m = 1; m <= 12; m++) {
+            let h = 0;
+            let r = 0;
+
+            if (m === currentMonth) {
+                h = currentHandling;
+                r = currentRevenue;
+            } else {
+                const past = allMonthlyHistory[m] || { handling: 0, revenue: 0 };
+                h = past.handling;
+                r = past.revenue;
+            }
+
+            ytdHandling += h;
+            ytdRevenue += r;
+            monthDataList.push({ month: m, handling: h, revenue: r });
+        }
+
+        const ytdRate = ytdHandling > 0 ? (ytdRevenue / ytdHandling) * 100 : 0;
+
+        tbody.innerHTML = '';
+
+        // Row 1: 취급액
+        const trHandling = document.createElement('tr');
+        let hHtml = `<td>취급액</td>`;
+        monthDataList.forEach(item => {
+            if (item.month === currentMonth) {
+                hHtml += `<td class="current-month">${item.handling > 0 ? item.handling.toLocaleString('ko-KR') : '-'}</td>`;
+            } else {
+                hHtml += `<td class="editable-cell" onclick="openEditMonthModal(${item.month})" title="${item.month}월 실적 수정하기">${item.handling > 0 ? item.handling.toLocaleString('ko-KR') : '-'}</td>`;
+            }
+        });
+        hHtml += `<td class="ytd-cell">${ytdHandling.toLocaleString('ko-KR')}</td>`;
+        trHandling.innerHTML = hHtml;
+
+        // Row 2: 매출액
+        const trRevenue = document.createElement('tr');
+        let rHtml = `<td>매출액</td>`;
+        monthDataList.forEach(item => {
+            if (item.month === currentMonth) {
+                rHtml += `<td class="current-month">${item.revenue > 0 ? item.revenue.toLocaleString('ko-KR') : '-'}</td>`;
+            } else {
+                rHtml += `<td class="editable-cell" onclick="openEditMonthModal(${item.month})" title="${item.month}월 실적 수정하기">${item.revenue > 0 ? item.revenue.toLocaleString('ko-KR') : '-'}</td>`;
+            }
+        });
+        rHtml += `<td class="ytd-cell">${ytdRevenue.toLocaleString('ko-KR')}</td>`;
+        trRevenue.innerHTML = rHtml;
+
+        // Row 3: 수수료율
+        const trRate = document.createElement('tr');
+        let rateHtml = `<td>수수료율</td>`;
+        monthDataList.forEach(item => {
+            const rateVal = item.handling > 0 ? (item.revenue / item.handling) * 100 : 0;
+            if (item.month === currentMonth) {
+                rateHtml += `<td class="current-month">${rateVal > 0 ? rateVal.toFixed(2) + '%' : '-'}</td>`;
+            } else {
+                rateHtml += `<td class="editable-cell" onclick="openEditMonthModal(${item.month})" title="${item.month}월 실적 수정하기">${rateVal > 0 ? rateVal.toFixed(2) + '%' : '-'}</td>`;
+            }
+        });
+        rateHtml += `<td class="ytd-cell">${ytdRate.toFixed(2)}%</td>`;
+        trRate.innerHTML = rateHtml;
+
+        tbody.appendChild(trHandling);
+        tbody.appendChild(trRevenue);
+        tbody.appendChild(trRate);
+    }
+
+    function openEditMonthModal(m) {
+        if (m === currentMonth) return;
+        const targetData = allMonthlyHistory[m] || { handling: 0, revenue: 0 };
+        
+        document.getElementById('editTargetMonth').value = m;
+        document.getElementById('editMonthModalTitle').innerText = `📅 ${m}월 확정 실적 수정`;
+        document.getElementById('modalHandling').value = targetData.handling;
+        document.getElementById('modalRevenue').value = targetData.revenue;
+        
+        calculateModalRate();
+        document.getElementById('editMonthModal').classList.add('active');
+    }
+
+    function closeEditMonthModal() {
+        document.getElementById('editMonthModal').classList.remove('active');
+    }
+
+    function calculateModalRate() {
+        const h = parseFloat(document.getElementById('modalHandling').value) || 0;
+        const r = parseFloat(document.getElementById('modalRevenue').value) || 0;
+        const rateEl = document.getElementById('modalRate');
+        
+        if (h > 0) {
+            const rate = (r / h) * 100;
+            rateEl.value = rate.toFixed(2) + '%';
+        } else {
+            rateEl.value = '0.00%';
+        }
+    }
+
+    function savePastMonthData() {
+        const m = parseInt(document.getElementById('editTargetMonth').value, 10);
+        const h = parseFloat(document.getElementById('modalHandling').value) || 0;
+        const r = parseFloat(document.getElementById('modalRevenue').value) || 0;
+
+        if (!m) return;
+
+        allMonthlyHistory[m] = { handling: h, revenue: r };
+        localStorage.setItem('monthlyHistory', JSON.stringify(allMonthlyHistory));
+
+        closeEditMonthModal();
+        render();
+        showToast(`📅 ${m}월 실적이 수정되었습니다.`);
+    }
+
+    function copyAppUrl() {
+        const dummy = document.createElement('input');
+        const text = window.location.href;
+        document.body.appendChild(dummy);
+        dummy.value = text;
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+
+        showToast('📋 웹 도구 주소가 복사되었습니다. 사내 메신저에 Ctrl+V로 공유해 주세요!');
+    }
+
+    function showToast(msg) {
+        let toast = document.getElementById('toastMsg');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toastMsg';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '24px';
+            toast.style.right = '24px';
+            toast.style.backgroundColor = '#1f2937';
+            toast.style.color = '#ffffff';
+            toast.style.padding = '12px 20px';
+            toast.style.borderRadius = '6px';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            toast.style.zIndex = '9999';
+            toast.style.fontSize = '0.9em';
+            toast.style.transition = 'opacity 0.3s ease';
+            document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>

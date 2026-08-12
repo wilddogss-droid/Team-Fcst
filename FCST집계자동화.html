@@ -48,6 +48,7 @@
             align-items: center;
             background: #eef0f8;
             border-left: 5px solid var(--primary);
+            gap: 15px;
         }
 
         .form-row {
@@ -106,6 +107,7 @@
         .btn-teams { background-color: var(--primary); color: white; }
         .btn-submit { background-color: var(--success); color: white; }
         .btn-delete { background-color: #dc3545; color: white; padding: 4px 8px; font-size: 0.8em; }
+        .btn-secondary { background-color: #6c757d; color: white; }
 
         .unit-label {
             font-size: 0.85em;
@@ -229,8 +231,48 @@
             background: white;
             padding: 24px;
             border-radius: 8px;
-            width: 320px;
+            width: 420px;
+            max-width: 90%;
             box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .sync-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 0.75em;
+            border-radius: 12px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .sync-active { background: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; }
+        .sync-local { background: #feefc3; color: #744210; border: 1px solid #fbd38d; }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: #2d3748;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 2000;
+        }
+
+        code {
+            display: block;
+            background: #2d3748;
+            color: #63b3ed;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.78em;
+            max-height: 180px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
     </style>
 </head>
@@ -239,13 +281,19 @@
 <div class="container">
     <h2>📊 팀 FCST 집계</h2>
 
-    <!-- 1. 웹 도구 주소 공유 -->
+    <!-- 1. 웹 도구 주소 공유 및 구글 시트 DB 설정 -->
     <div class="card admin-section">
         <div>
-            <h3 style="margin-bottom: 5px;">🔗 웹 도구 주소 공유</h3>
-            <span style="font-size: 0.85em; color: #555;">사내 메신저(팀즈, 이메일 등)에 공유할 웹 도구 링크를 복사합니다.</span>
+            <h3 style="margin-bottom: 5px; display:flex; align-items:center;">
+                🔗 웹 도구 주소 공유
+                <span id="syncStatusBadge" class="sync-badge sync-local">로컬 저장 모드</span>
+            </h3>
+            <span style="font-size: 0.85em; color: #555;">팀원들과 공유할 웹 도구 링크 및 구글 시트 중앙 DB 연동 설정입니다.</span>
         </div>
-        <button class="btn-teams" onclick="copyAppUrl()">📋 주소 복사하기</button>
+        <div style="display:flex; gap:8px;">
+            <button class="btn-secondary" style="font-size:0.85em;" onclick="openApiConfigModal()">⚙️ 구글시트 연동설정</button>
+            <button class="btn-teams" onclick="copyAppUrl()">📋 주소 복사하기</button>
+        </div>
     </div>
 
     <!-- 2. 담당자 입력 영역 -->
@@ -271,7 +319,7 @@
                 <input type="number" id="revenue" placeholder="예: 3000000" oninput="calculateRate()">
             </div>
             <div class="form-group">
-                <label>수수료율</label>
+                <label>수수료율 (자동계산)</label>
                 <input type="text" id="rate" readonly value="0.00%">
             </div>
             <div>
@@ -334,7 +382,7 @@
 
 <!-- 월별 실적 수정을 위한 모달 창 -->
 <div id="editMonthModal" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-content" style="width: 340px;">
         <h4 id="editMonthModalTitle" style="margin-top:0; margin-bottom:14px; color:#1a1a1a;">📅 실적 수정</h4>
         <input type="hidden" id="editTargetMonth">
         <div style="margin-bottom: 12px;">
@@ -350,14 +398,57 @@
             <input type="text" id="modalRate" readonly style="width:100%; padding:8px; background:#f8f9fa;">
         </div>
         <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button style="background:#6c757d; color:white; padding: 7px 14px;" onclick="closeEditMonthModal()">취소</button>
+            <button class="btn-secondary" style="padding: 7px 14px;" onclick="closeEditMonthModal()">취소</button>
             <button class="btn-submit" style="padding: 7px 14px;" onclick="savePastMonthData()">저장하기</button>
         </div>
     </div>
 </div>
 
+<!-- 구글 앱스 스크립트 API URL 연동 모달 창 -->
+<div id="apiConfigModal" class="modal-overlay">
+    <div class="modal-content">
+        <h4 style="margin-top:0; margin-bottom:8px; color:#1a1a1a;">⚙️ 구글 시트 중앙 DB 연동 설정</h4>
+        <p style="font-size:0.82em; color:#666; margin-bottom:10px; line-height:1.4;">
+            팀원들이 공유 링크로 접속해 입력한 값이 하나의 구글 시트에 실시간으로 모이도록 설정합니다.
+        </p>
+
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.8em; color:#3b42a0;">구글 시트 붙여넣기 스크립트 코드 (Code.gs):</label>
+            <code id="gasScriptCode">function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.clear();
+  data.forEach(function(row) { sheet.appendRow(row); });
+  return ContentService.createTextOutput("OK");
+}</code>
+            <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75em; margin-top: 4px;" onclick="copyGasScript()">📋 코드 복사</button>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+            <label>Apps Script Web App URL</label>
+            <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:0.85em;">
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button class="btn-secondary" style="padding: 7px 10px; font-size:0.82em;" onclick="clearGasUrl()">로컬 모드 전환</button>
+            <div style="display:flex; gap:6px;">
+                <button class="btn-secondary" style="padding: 7px 12px;" onclick="closeApiConfigModal()">취소</button>
+                <button class="btn-submit" style="padding: 7px 12px;" onclick="saveGasUrl()">연동 저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast-msg"></div>
+
 <script>
-    let WEBHOOK_URL = "";
+    let GAS_WEB_APP_URL = localStorage.getItem('GAS_WEB_APP_URL') || "";
 
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth() + 1;
@@ -377,7 +468,7 @@
         12: { handling: 550000000, revenue: 16500000 }
     };
 
-    const allMonthlyHistory = JSON.parse(localStorage.getItem('monthlyHistory')) || defaultHistory;
+    let allMonthlyHistory = JSON.parse(localStorage.getItem('monthlyHistory')) || defaultHistory;
 
     let fcstList = JSON.parse(localStorage.getItem('fcstData')) || [
         { owner: '손창곤', handling: 200000000, revenue: 6000000, rate: 3.0 },
@@ -386,22 +477,32 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         initTitles();
+        updateSyncBadge();
         calculateRate();
         render();
         checkExistingOwner();
-    });
 
-    window.onload = function() {
-        initTitles();
-        calculateRate();
-        render();
-        checkExistingOwner();
-    };
+        if (GAS_WEB_APP_URL) {
+            loadDataFromCloud();
+        }
+    });
 
     function initTitles() {
         const titleEl = document.getElementById('currentMonthTitle');
         if (titleEl) {
             titleEl.innerText = `📈 ${currentMonth}월 팀 FCST 집계 현황`;
+        }
+    }
+
+    function updateSyncBadge() {
+        const badge = document.getElementById('syncStatusBadge');
+        if (!badge) return;
+        if (GAS_WEB_APP_URL.trim() !== "") {
+            badge.innerText = "☁️ 구글 시트 실시간 연동 중";
+            badge.className = "sync-badge sync-active";
+        } else {
+            badge.innerText = "💻 로컬 저장 모드";
+            badge.className = "sync-badge sync-local";
         }
     }
 
@@ -458,11 +559,11 @@
         const revenue = parseFloat(revenueEl.value) || 0;
 
         if (!owner) {
-            alert('담당자를 선택해 주세요.');
+            showToast('⚠️ 담당자를 선택해 주세요.');
             return;
         }
         if (handling <= 0) {
-            alert('올바른 취급액을 입력해 주세요.');
+            showToast('⚠️ 올바른 취급액을 입력해 주세요.');
             return;
         }
 
@@ -477,19 +578,23 @@
 
         saveAndRender();
         checkExistingOwner();
+        showToast(`✅ ${owner} 님의 FCST 정보가 저장되었습니다.`);
     }
 
     function deleteData(index) {
         if (index >= 0 && index < fcstList.length) {
+            const deletedOwner = fcstList[index].owner;
             fcstList.splice(index, 1);
             saveAndRender();
             checkExistingOwner();
+            showToast(`🗑️ ${deletedOwner} 님의 항목이 삭제되었습니다.`);
         }
     }
 
     function saveAndRender() {
         localStorage.setItem('fcstData', JSON.stringify(fcstList));
         render();
+        syncDataToCloud();
     }
 
     function render() {
@@ -647,57 +752,123 @@
     }
 
     function savePastMonthData() {
-        const m = parseInt(document.getElementById('editTargetMonth').value, 10);
+        const m = document.getElementById('editTargetMonth').value;
         const h = parseFloat(document.getElementById('modalHandling').value) || 0;
         const r = parseFloat(document.getElementById('modalRevenue').value) || 0;
 
-        if (!m) return;
-
         allMonthlyHistory[m] = { handling: h, revenue: r };
         localStorage.setItem('monthlyHistory', JSON.stringify(allMonthlyHistory));
-
+        
         closeEditMonthModal();
         render();
-        showToast(`📅 ${m}월 실적이 수정되었습니다.`);
+        showToast(`✅ ${m}월 실적이 수정되었습니다.`);
+    }
+
+    function syncDataToCloud() {
+        if (!GAS_WEB_APP_URL.trim()) return;
+
+        const payload = fcstList.map(item => [item.owner, item.handling, item.revenue, item.rate]);
+        payload.unshift(["담당자", "취급액", "매출액", "수수료율"]);
+
+        fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(err => console.error("Cloud Sync error:", err));
+    }
+
+    function loadDataFromCloud() {
+        if (!GAS_WEB_APP_URL.trim()) return;
+
+        fetch(GAS_WEB_APP_URL)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 1) {
+                    const loadedList = [];
+                    for (let i = 1; i < data.length; i++) {
+                        const row = data[i];
+                        if (row[0]) {
+                            loadedList.push({
+                                owner: String(row[0]),
+                                handling: Number(row[1]) || 0,
+                                revenue: Number(row[2]) || 0,
+                                rate: Number(row[3]) || 0
+                            });
+                        }
+                    }
+                    if (loadedList.length > 0) {
+                        fcstList = loadedList;
+                        localStorage.setItem('fcstData', JSON.stringify(fcstList));
+                        render();
+                        checkExistingOwner();
+                    }
+                }
+            })
+            .catch(err => console.error("Cloud Load Error:", err));
+    }
+
+    function openApiConfigModal() {
+        document.getElementById('gasUrlInput').value = GAS_WEB_APP_URL;
+        document.getElementById('apiConfigModal').classList.add('active');
+    }
+
+    function closeApiConfigModal() {
+        document.getElementById('apiConfigModal').classList.remove('active');
+    }
+
+    function saveGasUrl() {
+        const inputUrl = document.getElementById('gasUrlInput').value.trim();
+        GAS_WEB_APP_URL = inputUrl;
+        localStorage.setItem('GAS_WEB_APP_URL', GAS_WEB_APP_URL);
+        updateSyncBadge();
+        closeApiConfigModal();
+        if (GAS_WEB_APP_URL) {
+            showToast('☁️ 구글 시트 중앙 DB가 연동되었습니다.');
+            loadDataFromCloud();
+        } else {
+            showToast('💻 로컬 저장 모드로 설정되었습니다.');
+        }
+    }
+
+    function clearGasUrl() {
+        GAS_WEB_APP_URL = "";
+        localStorage.removeItem('GAS_WEB_APP_URL');
+        document.getElementById('gasUrlInput').value = "";
+        updateSyncBadge();
+        closeApiConfigModal();
+        showToast('💻 로컬 저장 모드로 설정되었습니다.');
+    }
+
+    function copyGasScript() {
+        const codeText = document.getElementById('gasScriptCode').innerText;
+        copyTextToClipboard(codeText);
+        showToast('📋 구글 스크립트 코드가 복사되었습니다.');
     }
 
     function copyAppUrl() {
-        const dummy = document.createElement('input');
-        const text = window.location.href;
-        document.body.appendChild(dummy);
-        dummy.value = text;
-        dummy.select();
-        document.execCommand('copy');
-        document.body.removeChild(dummy);
+        copyTextToClipboard(window.location.href);
+        showToast('📋 웹 도구 주소가 복사되었습니다. 팀원들에게 공유하세요!');
+    }
 
-        showToast('📋 웹 도구 주소가 복사되었습니다. 사내 메신저에 Ctrl+V로 공유해 주세요!');
+    function copyTextToClipboard(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
     }
 
     function showToast(msg) {
-        let toast = document.getElementById('toastMsg');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'toastMsg';
-            toast.style.position = 'fixed';
-            toast.style.bottom = '24px';
-            toast.style.right = '24px';
-            toast.style.backgroundColor = '#1f2937';
-            toast.style.color = '#ffffff';
-            toast.style.padding = '12px 20px';
-            toast.style.borderRadius = '6px';
-            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            toast.style.zIndex = '9999';
-            toast.style.fontSize = '0.9em';
-            toast.style.transition = 'opacity 0.3s ease';
-            document.body.appendChild(toast);
-        }
+        const toast = document.getElementById('toast');
+        if (!toast) return;
         toast.innerText = msg;
-        toast.style.opacity = '1';
+        toast.style.display = 'block';
         setTimeout(() => {
-            toast.style.opacity = '0';
-        }, 3000);
+            toast.style.display = 'none';
+        }, 2500);
     }
 </script>
-
 </body>
 </html>

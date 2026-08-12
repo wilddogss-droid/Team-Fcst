@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>팀 FCST 집계</title>
+<style>
+    :root {
+        --primary: #464EB8;
+        --success: #28a745;
+        --danger: #dc3545;
+        --bg: #f4f6f9;
+        --card-bg: #ffffff;
+        --text: #333333;
+        --border: #e2e8f0;
+    }
+
+    body {
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    h2, h3 { margin-top: 0; color: #1a1a1a; }
+
+    .card {
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 20px 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid var(--border);
+    }
+
+    .admin-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #eef0f8;
+        border-left: 5px solid var(--primary);
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { flex: 1; min-width: 170px; }
+
+    label {
+        display: block;
+        font-size: 0.85em;
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: #555;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 0.95em;
+        transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    input[readonly] { background-color: #f7fafc; color: #4a5568; font-weight: 600; }
+    select:disabled { background: #edf2f7; color: #4a5568; }
+
+    button {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        white-space: nowrap;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-teams { background-color: var(--primary); color: white; }
+    .btn-submit { background-color: var(--success); color: white; }
+    .btn-delete { background-color: var(--danger); color: white; padding: 4px 8px; font-size: 0.8em; }
+    .btn-secondary { background-color: #6c757d; color: white; }
+    .btn-link {
+        background: none; color: var(--primary); text-decoration: underline;
+        padding: 0 2px; font-size: 1em;
+    }
+
+    .unit-label { font-size: 0.85em; color: #666; text-align: right; }
+
+    .kpi-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin: 10px 0 15px;
+    }
+
+    .kpi-card {
+        background: #f8f9fa;
+        border: 1px solid var(--border);
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+    }
+
+    .kpi-title { font-size: 0.85em; color: #6c757d; margin-bottom: 5px; }
+    .kpi-value { font-size: 1.3em; font-weight: bold; color: #1a1a1a; }
+    .kpi-value.highlight { color: var(--primary); }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th, td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        text-align: right;
+        font-size: 0.9em;
+    }
+
+    th { background-color: #f8f9fa; text-align: center; color: #495057; }
+    td:nth-child(1) { text-align: center; font-weight: bold; }
+    td.who { text-align: center; font-size: 0.85em; color: #4a5568; font-weight: normal; }
+    td.who .when { color: #94a3b8; font-size: 0.9em; }
+
+    .matrix-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+    .matrix-table { width: 100%; min-width: 820px; border-collapse: collapse; white-space: nowrap; }
+    .matrix-table th, .matrix-table td {
+        padding: 10px 12px; text-align: right; font-size: 0.88em; border: 1px solid var(--border);
+    }
+    .matrix-table th { background-color: #edf2f7; color: #2d3748; font-weight: 600; }
+    .matrix-table td:first-child, .matrix-table th:first-child {
+        position: sticky; left: 0; background-color: #fff; z-index: 2;
+        font-weight: bold; text-align: center; border-right: 2px solid var(--border);
+    }
+    .matrix-table th:first-child { background-color: #e2e8f0; }
+    .matrix-table .current-month { background-color: #eef2ff; font-weight: bold; }
+    .matrix-table .ytd-cell {
+        background-color: #f7fafc; font-weight: bold; color: var(--primary);
+        border-left: 2px solid var(--border);
+    }
+
+    .editable-month, .editable-cell { cursor: pointer; transition: background-color 0.2s; }
+    .editable-month:hover, .editable-cell:hover { background-color: #eef2ff !important; color: var(--primary); }
+
+    .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.4); z-index: 1000;
+        justify-content: center; align-items: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+        background: white; padding: 24px; border-radius: 8px;
+        width: 440px; max-width: 92%; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .sync-badge {
+        display: inline-block; padding: 3px 8px; font-size: 0.75em;
+        border-radius: 12px; margin-left: 8px; vertical-align: middle;
+    }
+    .sync-active { background: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; }
+    .sync-local  { background: #feefc3; color: #744210; border: 1px solid #fbd38d; }
+    .sync-error  { background: #fed7d7; color: #742a2a; border: 1px solid #fc8181; }
+
+    .banner {
+        display: none;
+        margin-top: 12px; padding: 10px 12px;
+        background: #fffbeb; border: 1px solid #fbd38d; border-radius: 6px;
+        font-size: 0.86em; color: #744210;
+    }
+    .notice {
+        display: none;
+        margin-bottom: 20px; padding: 12px 16px;
+        background: #fff5f5; border: 1px solid #fc8181; border-radius: 6px;
+        font-size: 0.87em; color: #742a2a; line-height: 1.5;
+    }
+
+    .conflict-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 16px;
+    }
+    .conflict-box {
+        border: 1px solid var(--border); border-radius: 6px; padding: 10px;
+        font-size: 0.85em; line-height: 1.6; background: #f8fafc;
+    }
+    .conflict-box h5 { margin: 0 0 6px; font-size: 0.9em; color: var(--primary); }
+
+    .meta-line { font-size: 0.78em; color: #94a3b8; margin-top: 8px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 팀 FCST 집계</h2>
+
+    <div id="setupNotice" class="notice">
+        <b>서버가 설정되지 않아 로컬 전용으로 동작 중입니다.</b><br>
+        입력값이 이 브라우저에만 저장되고 팀원과 공유되지 않습니다.
+        <code>config.js</code>의 <code>gasUrl</code>과 <code>token</code>을 채운 뒤 다시 배포하세요.
+    </div>
+
+    <!-- 1. 상단 상태 -->
+    <div class="card admin-section">
+        <div>
+            <h3 style="margin-bottom:5px; display:flex; align-items:center;">
+                🔗 팀 공유 현황
+                <span id="syncStatusBadge" class="sync-badge sync-local">연결 확인 중…</span>
+            </h3>
+            <span style="font-size:0.85em; color:#555;">
+                모든 입력은 팀 공용 구글 시트에 즉시 저장되며, 다른 사람의 변경도 자동으로 반영됩니다.
+            </span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <div style="min-width:130px;">
+                <label style="margin-bottom:4px;">내 이름</label>
+                <select id="meSelect"></select>
+            </div>
+            <button id="btnRefresh" class="btn-secondary" style="font-size:0.85em;">🔄 새로고침</button>
+            <button id="btnCopyUrl" class="btn-teams">📋 주소 복사</button>
+        </div>
+    </div>
+
+    <!-- 2. 담당자 입력 -->
+    <div class="card">
+        <h3>✏️ 담당자 FCST 입력</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>담당자명</label>
+                <select id="owner"></select>
+            </div>
+            <div class="form-group">
+                <label>예상 취급액</label>
+                <input type="number" id="handling" min="0" step="1" placeholder="예: 100000000">
+            </div>
+            <div class="form-group">
+                <label>예상 매출액/수수료</label>
+                <input type="number" id="revenue" min="0" step="1" placeholder="예: 3000000">
+            </div>
+            <div class="form-group">
+                <label>수수료율 (자동계산)</label>
+                <input type="text" id="rate" readonly value="0.00%">
+            </div>
+            <div>
+                <button id="btnSubmit" class="btn-submit">제출하기</button>
+            </div>
+        </div>
+        <div id="staleBanner" class="banner"></div>
+    </div>
+
+    <!-- 3. 집계 -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 id="currentMonthTitle" style="margin:0;">📈 팀 FCST 집계 현황</h3>
+            <div class="unit-label">(단위: 원)</div>
+        </div>
+
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-title">팀 총 취급액</div>
+                <div class="kpi-value" id="kpiHandling">0 원</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">팀 총 매출액</div>
+                <div class="kpi-value highlight" id="kpiRevenue">0 원</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">팀 평균 수수료율</div>
+                <div class="kpi-value" id="kpiRate">0.00 %</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>담당자</th>
+                    <th>취급액</th>
+                    <th>매출액 (수수료)</th>
+                    <th>수수료율 (%)</th>
+                    <th>최종수정</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="dataTable"></tbody>
+        </table>
+        <div class="meta-line" id="lastSync"></div>
+    </div>
+
+    <!-- 4. 월별 매트릭스 -->
+    <div class="card">
+        <h3 style="margin-bottom:12px;">📅 월별 실적 및 연간 누계
+            <span style="font-size:0.78em; font-weight:normal; color:#666;">(💡 월 헤더/숫자를 클릭해 지난 실적 수정)</span>
+        </h3>
+        <div class="matrix-wrapper">
+            <table class="matrix-table">
+                <thead id="monthlyMatrixHead"></thead>
+                <tbody id="monthlyMatrixTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 월별 실적 수정 모달 -->
+<div id="editMonthModal" class="modal-overlay">
+    <div class="modal-content" style="width:360px;">
+        <h4 id="editMonthModalTitle" style="margin:0 0 6px; color:#1a1a1a;">📅 실적 수정</h4>
+        <div id="modalMeta" style="font-size:0.78em; color:#718096; margin-bottom:14px;"></div>
+        <input type="hidden" id="editTargetYm">
+        <div style="margin-bottom:12px;">
+            <label>취급액</label>
+            <input type="number" id="modalHandling" min="0" step="1">
+        </div>
+        <div style="margin-bottom:12px;">
+            <label>매출액</label>
+            <input type="number" id="modalRevenue" min="0" step="1">
+        </div>
+        <div style="margin-bottom:16px;">
+            <label>수수료율 (자동계산)</label>
+            <input type="text" id="modalRate" readonly>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button id="btnCancelMonth" class="btn-secondary" style="padding:7px 14px;">취소</button>
+            <button id="btnSaveMonth" class="btn-submit" style="padding:7px 14px;">저장하기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 동시 수정 충돌 해결 모달 -->
+<div id="conflictModal" class="modal-overlay">
+    <div class="modal-content">
+        <h4 style="margin:0 0 6px; color:var(--danger);">⚠️ 동시 수정이 감지되었습니다</h4>
+        <div id="conflictWho" style="font-size:0.85em; color:#4a5568;"></div>
+        <div class="conflict-grid">
+            <div class="conflict-box">
+                <h5>내가 입력한 값</h5>
+                <div id="conflictMine"></div>
+            </div>
+            <div class="conflict-box">
+                <h5>서버의 최신 값</h5>
+                <div id="conflictTheirs"></div>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button id="btnKeepTheirs" class="btn-secondary" style="padding:7px 12px;">서버 값 사용</button>
+            <button id="btnKeepMine" class="btn-submit" style="padding:7px 12px;">내 값으로 덮어쓰기</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" style="position:fixed; bottom:25px; right:25px; background:#2d3748; color:#fff;
+     padding:12px 20px; border-radius:6px; font-size:0.9em; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+     display:none; z-index:2000;"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

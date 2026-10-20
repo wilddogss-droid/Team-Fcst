@@ -50,12 +50,15 @@
 
     // Content-Type 을 text/plain 으로 보내면 CORS preflight 가 발생하지 않아
     // Apps Script 웹앱에 그대로 POST 할 수 있습니다(no-cors 불필요 → 응답 확인 가능).
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 35000);
     return fetch(CFG.gasUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: body,
       redirect: 'follow',
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: controller.signal
     }).then(function (res) {
       if (!res.ok) throw { code: 'HTTP_' + res.status, message: '서버 응답 오류(' + res.status + ')' };
       return res.text();
@@ -63,6 +66,11 @@
       var data;
       try { data = JSON.parse(text); }
       catch (e) { throw { code: 'PARSE', message: '응답을 해석하지 못했습니다. 웹앱 액세스 권한을 확인하세요.' }; }
+      if (!data || typeof data.ok !== 'boolean' ||
+          (data.ok && (action === 'ping' ? typeof data.version !== 'number' :
+            !data.state || !Array.isArray(data.state.fcst) || typeof data.state.version !== 'number'))) {
+        throw { code: 'PARSE', message: '서버 응답 형식이 올바르지 않습니다. 웹앱 배포 버전을 확인하세요.' };
+      }
       if (!data.ok && data.code === 'BUSY' && attempt < 3) {
         return sleep(300 * (attempt + 1)).then(function () {
           return callRemote(action, payload, attempt + 1);
@@ -70,8 +78,11 @@
       }
       return data;
     }).catch(function (e) {
+      if (e && e.name === 'AbortError') return { ok: false, code: 'TIMEOUT', message: '서버 응답 시간이 초과되었습니다. 새로고침으로 저장 여부를 확인하세요.' };
       if (e && e.code) return { ok: false, code: e.code, message: e.message };
       return { ok: false, code: 'NETWORK', message: '네트워크에 연결하지 못했습니다.' };
+    }).finally(function () {
+      clearTimeout(timeout);
     });
   }
 
@@ -533,7 +544,8 @@
       b.innerText = '💻 로컬 전용 모드 (팀 공유 안 됨)';
       return;
     }
-    if (kind === 'ok') { b.className = 'sync-badge sync-active'; b.innerText = '☁️ 팀 공유 연결됨'; }
+    if (kind === 'loading') { b.className = 'sync-badge sync-local'; b.innerText = '연결 확인 중…'; }
+    else if (kind === 'ok') { b.className = 'sync-badge sync-active'; b.innerText = '☁️ 팀 공유 연결됨'; }
     else { b.className = 'sync-badge sync-error'; b.innerText = '⚠️ 연결 오류: ' + (msg || ''); }
   }
 
@@ -593,7 +605,9 @@
       toast('📋 주소를 복사했습니다. 팀원에게 공유하세요.');
     });
     el('btnRefresh').addEventListener('click', function () {
-      refreshState().then(function () { toast('🔄 최신 데이터를 불러왔습니다.'); });
+      refreshState().then(function (r) {
+        toast(r.ok ? '🔄 최신 데이터를 불러왔습니다.' : '❌ 새로고침 실패: ' + (r.message || r.code));
+      });
     });
 
     // 삭제 버튼 / 월 셀은 이벤트 위임 — 인덱스가 아니라 키(담당자·연월) 기준
@@ -615,7 +629,10 @@
       el('setupNotice').style.display = 'block';
     }
 
-    setStatus(REMOTE ? 'ok' : 'local');
+    el('syncDescription').innerText = REMOTE
+      ? '팀 공용 구글 시트에 연결합니다. 연결 상태를 확인한 뒤 입력해 주세요.'
+      : '입력은 이 브라우저에만 저장됩니다. 주소를 공유해도 입력 데이터는 공유되지 않습니다.';
+    setStatus(REMOTE ? 'loading' : 'local');
     state.ym = ymNow();
     render();
     refreshState().then(function () { fillFormFromState(); });

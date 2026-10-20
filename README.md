@@ -9,12 +9,14 @@ fcst-app/
 ├─ config.js       ★ 팀마다 수정하는 유일한 파일
 ├─ Code.gs         Google Apps Script 백엔드 (구글 시트에 붙여넣기)
 ├─ .nojekyll
-└─ .github/workflows/pages.yml   GitHub Pages 자동 배포
+└─ GitHub Pages 기본 배포 (main / root)
 ```
 
 ---
 
 ## 1. 구글 시트(중앙 DB) 준비
+
+독립형 Apps Script 프로젝트는 `Code.gs`를 저장한 뒤 `setup` 함수를 한 번 실행하고 Google 권한을 승인하세요. `팀 FCST DB`가 생성되며 ID는 스크립트 속성에 저장됩니다. 재실행해도 기존 DB를 유지합니다. 그 다음 아래의 웹 앱 배포 절차를 따르세요.
 
 1. 구글 드라이브에서 새 스프레드시트를 만듭니다. (예: `팀FCST_DB`)
 2. **확장 프로그램 → Apps Script** 를 엽니다.
@@ -58,8 +60,8 @@ git remote add origin https://github.com/<계정>/<저장소>.git
 git push -u origin main
 ```
 
-저장소 **Settings → Pages → Build and deployment → Source: GitHub Actions** 로 설정하면
-포함된 워크플로가 `main` 푸시마다 자동 배포합니다.
+별도 배포 워크플로 파일은 없습니다. **Settings → Pages → Build and deployment**에서
+`Deploy from a branch → main / (root)`를 사용하면 GitHub 기본 `pages build and deployment` 작업이 배포합니다.
 (Actions 대신 `Deploy from a branch → main / (root)` 를 골라도 됩니다.)
 
 배포 주소: `https://<계정>.github.io/<저장소>/`

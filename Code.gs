@@ -19,7 +19,7 @@
  *  - 시트(FCST / HISTORY / LOG)는 최초 요청 때 자동 생성됩니다.
  */
 
-var APP_TOKEN = 'CHANGE_ME_TOKEN';   // ★ config.js 의 token 과 동일하게
+var APP_TOKEN = 'fa891a84c94cbcde0148c70e819ca0bd0d057df8c98c85f3';   // ★ config.js 의 token 과 동일하게
 var TZ        = 'Asia/Seoul';        // 기준월 판정 시간대(모든 사용자 공통)
 var SHEET_ID  = '';                  // 컨테이너 바인딩이 아니면 시트 ID 입력
 
@@ -270,7 +270,30 @@ function histRec_(r) {
 /* ------------------------------------------------------------------ 유틸 */
 
 function ss_() {
-  return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  var id = SHEET_ID || PropertiesService.getScriptProperties().getProperty('FCST_SHEET_ID');
+  var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('먼저 setup 함수를 실행해 팀 FCST 시트를 생성하세요.');
+  return ss;
+}
+
+// 독립형 Apps Script 프로젝트에서 최초 한 번 실행합니다. 재실행해도 같은 DB를 유지합니다.
+function setup() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var id = SHEET_ID || props.getProperty('FCST_SHEET_ID');
+    var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) ss = SpreadsheetApp.create('팀 FCST DB');
+    props.setProperty('FCST_SHEET_ID', ss.getId());
+    ss.setSpreadsheetTimeZone(TZ);
+    getSheet_(SH_FCST, H_FCST);
+    getSheet_(SH_HIST, H_HIST);
+    getSheet_(SH_LOG, H_LOG);
+    console.log('팀 FCST DB: ' + ss.getUrl());
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getSheet_(name, headers) {

@@ -10,7 +10,7 @@ window.FCST_CONFIG = {
   gasUrl: "",
 
   // 2) Code.gs 의 APP_TOKEN 과 반드시 동일한 값
-  token: "CHANGE_ME_TOKEN",
+  token: "fa891a84c94cbcde0148c70e819ca0bd0d057df8c98c85f3",
 
   // 3) 담당자 목록 (서버 데이터와 무관하게 화면 선택지만 정의)
   owners: ["손창곤", "유슬아", "옥수영", "박명선", "최원준"],
